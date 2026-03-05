@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1772695219738,
+      "tag": "0000_daily_zemo",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772720285623,
+      "tag": "0001_motionless_tarot",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772730374478,
+      "tag": "0002_tricky_morlocks",
+      "breakpoints": true
+    }
+  ]
+}
