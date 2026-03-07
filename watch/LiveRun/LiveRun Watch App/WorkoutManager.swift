@@ -44,10 +44,21 @@ class WorkoutManager: NSObject, ObservableObject {
     }
 
     func stop() {
-        session?.end()
-        builder?.discardWorkout()
         locationManager.stopUpdatingLocation()
         pedometer.stopUpdates()
+
+        let shouldSave = distanceMeters >= 50
+        let now = Date()
+
+        session?.end()
+
+        if shouldSave {
+            builder?.endCollection(withEnd: now) { [weak self] _, _ in
+                self?.builder?.finishWorkout { _, _ in }
+            }
+        } else {
+            builder?.discardWorkout()
+        }
 
         Task {
             if let runId = runId {
