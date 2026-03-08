@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isProfane } from "@/lib/profanity";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,10 @@ function ChooseUsernameForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isProfane(username)) {
+      setError("That username is not allowed");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
