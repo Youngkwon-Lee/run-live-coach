@@ -161,7 +161,11 @@ class WorkoutManager: NSObject, ObservableObject {
 
             Task {
                 await trackingService.configure(token: bearerToken)
-                if let id = await trackingService.createRun() {
+                if Config.liveMetricsURL != nil {
+                    // Live metrics mode: skip API call, generate local session ID
+                    let localId = UUID().uuidString
+                    await MainActor.run { self.runId = localId }
+                } else if let id = await trackingService.createRun() {
                     await MainActor.run { self.runId = id }
                 }
             }
