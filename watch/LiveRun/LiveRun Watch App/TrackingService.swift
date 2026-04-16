@@ -112,6 +112,7 @@ actor TrackingService {
     }
 
     private func sendLiveMetrics(_ point: TrackingPoint) async {
+        print("🚀 Sending live metrics: pace=\(point.pace ?? 0), hr=\(point.heartRate ?? 0), dist=\(point.distanceMeters ?? 0)")
         guard let liveMetricsURL,
               let url = URL(string: liveMetricsURL) else { return }
 
@@ -122,7 +123,7 @@ actor TrackingService {
         let payload = LiveMetricsPayload(
             session_id: point.runId,
             pace_sec: paceSec,
-            hr: point.heartRate,
+            hr: point.heartRate.map { (($0 * 10).rounded() / 10) },
             distance_km: distanceKm,
             elapsed_sec: elapsed,
             force: false
