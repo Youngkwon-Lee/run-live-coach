@@ -1,0 +1,4 @@
+// Copy to RunIngestConfig.xcconfig and fill real values
+RUN_INGEST_URL = https://pdzzmmytzpovemgmubqj.supabase.co/functions/v1/runs-ingest
+RUN_INGEST_API_KEY = __FILL_ME__
+RUN_INGEST_SIGNING_SECRET = __FILL_ME__

@@ -46,6 +46,7 @@ class WorkoutManager: NSObject, ObservableObject {
     private var runId: String?
     private var previousLocation: CLLocation?
     private var lastCheerShownDate = Date.distantPast
+    private var liveMetricsTimer: Timer?
 
     override init() {
         super.init()
@@ -65,6 +66,22 @@ class WorkoutManager: NSObject, ObservableObject {
     func stop() {
         locationManager.stopUpdatingLocation()
         pedometer.stopUpdates()
+        stopLiveMetricsTimer()
+
+        // Send final summary metric with force: true
+        if let runId = runId, Config.liveMetricsURL != nil {
+            let elapsed = startDate.map { Int(Date().timeIntervalSince($0)) } ?? 0
+            let point = TrackingPoint(
+                runId: runId,
+                latitude: 0, longitude: 0, altitude: nil,
+                heartRate: heartRate > 0 ? heartRate : nil,
+                pace: pace > 0 ? pace : nil,
+                distanceMeters: distanceMeters > 0 ? distanceMeters : nil,
+                cadence: nil, gradeAdjustedPace: nil,
+                recordedAt: Date()
+            )
+            Task { await trackingService.sendFinalMetrics(point, elapsed: elapsed) }
+        }
 
         let shouldSave = distanceMeters >= 50
         let now = Date()
@@ -161,7 +178,14 @@ class WorkoutManager: NSObject, ObservableObject {
 
             Task {
                 await trackingService.configure(token: bearerToken)
-                if let id = await trackingService.createRun() {
+                if Config.liveMetricsURL != nil {
+                    // Live metrics mode: skip API call, generate local session ID
+                    let localId = UUID().uuidString
+                    await MainActor.run {
+                        self.runId = localId
+                        self.startLiveMetricsTimer()
+                    }
+                } else if let id = await trackingService.createRun() {
                     await MainActor.run { self.runId = id }
                 }
             }
@@ -169,6 +193,30 @@ class WorkoutManager: NSObject, ObservableObject {
             print("Failed to start workout: \(error)")
         }
     }
+    // MARK: - Live Metrics Timer (fallback when GPS unavailable e.g. simulator)
+
+    private func startLiveMetricsTimer() {
+        liveMetricsTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            guard let self, let runId = self.runId else { return }
+            let point = TrackingPoint(
+                runId: runId,
+                latitude: 37.7749, longitude: -122.4194,
+                altitude: nil,
+                heartRate: self.heartRate > 0 ? self.heartRate : nil,
+                pace: self.pace > 0 ? self.pace : nil,
+                distanceMeters: self.distanceMeters > 0 ? self.distanceMeters : nil,
+                cadence: nil, gradeAdjustedPace: nil,
+                recordedAt: Date()
+            )
+            Task { await self.trackingService.enqueue(point) }
+        }
+    }
+
+    private func stopLiveMetricsTimer() {
+        liveMetricsTimer?.invalidate()
+        liveMetricsTimer = nil
+    }
+
     // MARK: - Cheers
 
     private func requestNotificationPermission() {
@@ -240,6 +288,7 @@ class WorkoutManager: NSObject, ObservableObject {
 // MARK: - CLLocationManagerDelegate
 extension WorkoutManager: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        print("📍 Location update received: \(locations.count) points, runId=\(runId ?? "nil")")
         guard let runId = runId else { return }
 
         routeBuilder?.insertRouteData(locations) { _, _ in }

@@ -7,7 +7,7 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if !authManager.isAuthenticated {
+            if !authManager.isAuthenticated && Config.liveMetricsURL == nil {
                 DeviceAuthView(authManager: authManager)
             } else if workoutManager.showSummary, let summary = workoutManager.summaryData {
                 SummaryView(summary: summary) {
