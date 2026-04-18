@@ -68,6 +68,21 @@ class WorkoutManager: NSObject, ObservableObject {
         pedometer.stopUpdates()
         stopLiveMetricsTimer()
 
+        // Send final summary metric with force: true
+        if let runId = runId, Config.liveMetricsURL != nil {
+            let elapsed = startDate.map { Int(Date().timeIntervalSince($0)) } ?? 0
+            let point = TrackingPoint(
+                runId: runId,
+                latitude: 0, longitude: 0, altitude: nil,
+                heartRate: heartRate > 0 ? heartRate : nil,
+                pace: pace > 0 ? pace : nil,
+                distanceMeters: distanceMeters > 0 ? distanceMeters : nil,
+                cadence: nil, gradeAdjustedPace: nil,
+                recordedAt: Date()
+            )
+            Task { await trackingService.sendFinalMetrics(point, elapsed: elapsed) }
+        }
+
         let shouldSave = distanceMeters >= 50
         let now = Date()
 
@@ -183,7 +198,6 @@ class WorkoutManager: NSObject, ObservableObject {
     private func startLiveMetricsTimer() {
         liveMetricsTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             guard let self, let runId = self.runId else { return }
-            let elapsed = self.startDate.map { Int(Date().timeIntervalSince($0)) } ?? 0
             let point = TrackingPoint(
                 runId: runId,
                 latitude: 37.7749, longitude: -122.4194,

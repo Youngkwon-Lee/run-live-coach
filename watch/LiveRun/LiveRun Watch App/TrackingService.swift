@@ -17,7 +17,7 @@ struct TrackingPoint: Codable {
     }
 }
 
-struct LiveMetricsPayload: Codable {
+struct LiveMetricsPayload: Codable, Sendable {
     let session_id: String
     let pace_sec: Double
     let hr: Double?
@@ -111,6 +111,38 @@ actor TrackingService {
         return nil
     }
 
+    func sendFinalMetrics(_ point: TrackingPoint, elapsed: Int) async {
+        guard let liveMetricsURL,
+              let url = URL(string: liveMetricsURL) else { return }
+
+        let paceSec = (point.pace ?? 0) * 60.0
+        let distanceKm = (point.distanceMeters ?? 0) / 1000.0
+
+        let payload = LiveMetricsPayload(
+            session_id: point.runId,
+            pace_sec: paceSec,
+            hr: point.heartRate.map { (($0 * 10).rounded() / 10) },
+            distance_km: distanceKm,
+            elapsed_sec: elapsed,
+            force: true
+        )
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let liveToken, !liveToken.isEmpty {
+            request.setValue(liveToken, forHTTPHeaderField: "x-live-token")
+        }
+
+        do {
+            request.httpBody = try encoder.encode(payload)
+            let _ = try await URLSession.shared.data(for: request)
+            print("✅ Final metrics sent (force=true)")
+        } catch {
+            print("Failed to send final metrics: \(error)")
+        }
+    }
+
     private func sendLiveMetrics(_ point: TrackingPoint) async {
         print("🚀 Sending live metrics: pace=\(point.pace ?? 0), hr=\(point.heartRate ?? 0), dist=\(point.distanceMeters ?? 0)")
         guard let liveMetricsURL,
@@ -187,11 +219,11 @@ struct CheerHighlight: Codable {
     let message: String
 }
 
-private struct TrackResponse: Codable {
+private struct TrackResponse: Codable, Sendable {
     let ok: Bool
     let cheers: CheerUpdate?
 }
 
-private struct RunResponse: Codable {
+private struct RunResponse: Codable, Sendable {
     let id: String
 }
