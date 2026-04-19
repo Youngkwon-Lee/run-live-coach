@@ -34,7 +34,42 @@ struct RunningView: View {
             .padding(.horizontal)
             .tag(1)
 
-            // Swipe right: Cheers
+            // Swipe right: Coaching
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("COACHING")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .tracking(1.5)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Circle()
+                        .fill(severityColor(workoutManager.coachingSeverity))
+                        .frame(width: 6, height: 6)
+                }
+                .padding(.horizontal)
+
+                if let msg = workoutManager.coachingMessage {
+                    ScrollView {
+                        Text(msg)
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
+                    }
+                } else {
+                    Spacer()
+                    Text("런 시작 후\n코칭이 표시돼요")
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    Spacer()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.top, 4)
+            .tag(2)
+
+            // Swipe further right: Cheers
             VStack(alignment: .leading) {
                 Text("CHEERS")
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
@@ -70,9 +105,17 @@ struct RunningView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding(.top, -10)
-            .tag(2)
+            .tag(3)
         }
         .tabViewStyle(.page)
+    }
+
+    private func severityColor(_ severity: String) -> Color {
+        switch severity {
+        case "alert": return .red
+        case "warn": return .yellow
+        default: return .green
+        }
     }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {
