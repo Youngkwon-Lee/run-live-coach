@@ -55,7 +55,7 @@ cp Release.xcconfig.example Release.xcconfig
 2. Edit `Debug.xcconfig` and set `API_BASE_URL` to the `localhost:{PORT}` URL printed by `specific dev` in `web/`.
 
 3. (Optional for Discord coaching bridge) set:
-   - `LIVE_METRICS_URL=https://strava-run-log.vercel.app/api/live/metrics`
+   - `LIVE_METRICS_URL=https://<your-vercel-project>.vercel.app/api/live/metrics`
    - `LIVE_TOKEN=<optional shared secret>`
 
 4. Edit `Release.xcconfig` and set `API_BASE_URL` to your production URL (available after running `specific deploy` in `web/`).

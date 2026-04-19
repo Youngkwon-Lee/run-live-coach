@@ -32,6 +32,9 @@ class WorkoutManager: NSObject, ObservableObject {
     @Published var altitude: Double = 0
     @Published var gradeAdjustedPace: Double = 0
     @Published var cheers: [CheerEntry] = []
+    @Published var coachingMessage: String?
+    @Published var coachingSeverity: String = "info"
+    @Published var coachingAction: String = "maintain"
     var summaryData: RunSummary?
 
     private let healthStore = HKHealthStore()
@@ -208,7 +211,12 @@ class WorkoutManager: NSObject, ObservableObject {
                 cadence: nil, gradeAdjustedPace: nil,
                 recordedAt: Date()
             )
-            Task { await self.trackingService.enqueue(point) }
+            Task {
+                let (_, coaching) = await self.trackingService.enqueue(point)
+                if let coaching {
+                    await MainActor.run { self.handleCoachingResponse(coaching) }
+                }
+            }
         }
     }
 
@@ -221,6 +229,14 @@ class WorkoutManager: NSObject, ObservableObject {
 
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    private func handleCoachingResponse(_ response: CoachingResponse) {
+        guard response.sent == true, let message = response.coaching else { return }
+        coachingMessage = message
+        coachingSeverity = response.severity ?? "info"
+        coachingAction = response.action ?? "maintain"
+        WKInterfaceDevice.current().play(response.severity == "alert" ? .failure : .click)
     }
 
     private func handleCheerUpdate(_ update: CheerUpdate) {
@@ -313,8 +329,10 @@ extension WorkoutManager: CLLocationManagerDelegate {
                 recordedAt: location.timestamp
             )
             Task {
-                if let cheerUpdate = await trackingService.enqueue(point) {
-                    await MainActor.run { self.handleCheerUpdate(cheerUpdate) }
+                let (cheerUpdate, coaching) = await trackingService.enqueue(point)
+                await MainActor.run {
+                    if let cheerUpdate { self.handleCheerUpdate(cheerUpdate) }
+                    if let coaching { self.handleCoachingResponse(coaching) }
                 }
             }
         }
