@@ -24,6 +24,18 @@ struct LiveMetricsPayload: Codable, Sendable {
     let distance_km: Double
     let elapsed_sec: Int
     let force: Bool
+    let cadence: Double?
+    let gap_sec: Double?
+}
+
+struct CoachingResponse: Codable, Sendable {
+    let ok: Bool
+    let sent: Bool?
+    let coaching: String?
+    let severity: String?
+    let action: String?
+    let nextCheckSec: Int?
+    let adjustedTargetPaceSec: Double?
 }
 
 actor TrackingService {
@@ -96,19 +108,20 @@ actor TrackingService {
     // MARK: - Point batching
 
     @discardableResult
-    func enqueue(_ point: TrackingPoint) async -> CheerUpdate? {
+    func enqueue(_ point: TrackingPoint) async -> (CheerUpdate?, CoachingResponse?) {
         if liveMetricsURL != nil {
-            await sendLiveMetrics(point)
-            return nil
+            let coaching = await sendLiveMetrics(point)
+            return (nil, coaching)
         }
 
         buffer.append(point)
 
         let timeSinceFlush = Date().timeIntervalSince(lastFlushDate)
         if buffer.count >= maxBatchSize || timeSinceFlush >= maxInterval {
-            return await flush()
+            let cheer = await flush()
+            return (cheer, nil)
         }
-        return nil
+        return (nil, nil)
     }
 
     func sendFinalMetrics(_ point: TrackingPoint, elapsed: Int) async {
@@ -143,22 +156,25 @@ actor TrackingService {
         }
     }
 
-    private func sendLiveMetrics(_ point: TrackingPoint) async {
+    @discardableResult
+    private func sendLiveMetrics(_ point: TrackingPoint) async -> CoachingResponse? {
         print("🚀 Sending live metrics: pace=\(point.pace ?? 0), hr=\(point.heartRate ?? 0), dist=\(point.distanceMeters ?? 0)")
         guard let liveMetricsURL,
-              let url = URL(string: liveMetricsURL) else { return }
+              let url = URL(string: liveMetricsURL) else { return nil }
 
         let paceSec = (point.pace ?? 0) * 60.0
         let distanceKm = (point.distanceMeters ?? 0) / 1000.0
-        let elapsed = 0
+        let gapSec = point.gradeAdjustedPace.map { $0 * 60.0 }
 
         let payload = LiveMetricsPayload(
             session_id: point.runId,
             pace_sec: paceSec,
             hr: point.heartRate.map { (($0 * 10).rounded() / 10) },
             distance_km: distanceKm,
-            elapsed_sec: elapsed,
-            force: false
+            elapsed_sec: 0,
+            force: false,
+            cadence: point.cadence,
+            gap_sec: gapSec
         )
 
         var request = URLRequest(url: url)
@@ -170,9 +186,11 @@ actor TrackingService {
 
         do {
             request.httpBody = try encoder.encode(payload)
-            let _ = try await URLSession.shared.data(for: request)
+            let (data, _) = try await URLSession.shared.data(for: request)
+            return try JSONDecoder().decode(CoachingResponse.self, from: data)
         } catch {
             print("Failed to send live metrics: \(error)")
+            return nil
         }
     }
 
