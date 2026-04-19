@@ -26,6 +26,7 @@ function AuthForm() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [envReady, setEnvReady] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (session?.user) {
@@ -41,6 +42,23 @@ function AuthForm() {
     }
   }, [session, router, searchParams]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/config", { cache: "no-store" });
+        if (!res.ok) {
+          setEnvReady(false);
+          return;
+        }
+        const json = await res.json();
+        const ready = Boolean(json?.hasDatabaseUrl && json?.hasBetterAuthSecret);
+        setEnvReady(ready);
+      } catch {
+        setEnvReady(false);
+      }
+    })();
+  }, []);
+
   if (isPending || session?.user) {
     return (
       <div className="relative flex h-svh items-center justify-center">
@@ -54,6 +72,11 @@ function AuthForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (envReady === false) {
+      setError("서버 설정이 완료되지 않았어요. DATABASE_URL/BETTER_AUTH_SECRET 확인이 필요합니다.");
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === "signup") {
@@ -69,6 +92,8 @@ function AuthForm() {
           return;
         }
       }
+    } catch {
+      setError("인증 서버 오류입니다. DB/환경변수 설정 후 다시 시도해주세요.");
     } finally {
       setLoading(false);
     }
@@ -90,6 +115,12 @@ function AuthForm() {
             {mode === "signin" ? "Sign in to your account" : "Create your account"}
           </p>
         </div>
+
+        {envReady === false && (
+          <p className="rounded-md border border-amber-400/40 bg-amber-400/10 p-2 font-mono text-xs text-amber-200">
+            서버 초기 설정이 필요합니다 (DATABASE_URL, BETTER_AUTH_SECRET).
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {mode === "signup" && (
@@ -124,7 +155,7 @@ function AuthForm() {
             <p className="font-mono text-xs text-red-500">{error}</p>
           )}
 
-          <Button type="submit" disabled={loading} className="w-full font-mono">
+          <Button type="submit" disabled={loading || envReady === false} className="w-full font-mono">
             {loading
               ? "..."
               : mode === "signin"
