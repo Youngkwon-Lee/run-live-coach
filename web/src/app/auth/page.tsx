@@ -51,7 +51,9 @@ function AuthForm() {
           return;
         }
         const json = await res.json();
-        const ready = Boolean(json?.hasDatabaseUrl && json?.hasBetterAuthSecret);
+        const ready = Boolean(
+          json?.hasDatabaseUrl && json?.hasBetterAuthSecret && json?.dbReachable,
+        );
         setEnvReady(ready);
       } catch {
         setEnvReady(false);
@@ -73,7 +75,7 @@ function AuthForm() {
     e.preventDefault();
     setError("");
     if (envReady === false) {
-      setError("서버 설정이 완료되지 않았어요. DATABASE_URL/BETTER_AUTH_SECRET 확인이 필요합니다.");
+      setError("서버 설정이 완료되지 않았어요. DATABASE_URL/BETTER_AUTH_SECRET 또는 DB 연결 상태를 확인해주세요.");
       return;
     }
 
@@ -118,7 +120,7 @@ function AuthForm() {
 
         {envReady === false && (
           <p className="rounded-md border border-amber-400/40 bg-amber-400/10 p-2 font-mono text-xs text-amber-200">
-            서버 초기 설정이 필요합니다 (DATABASE_URL, BETTER_AUTH_SECRET).
+            서버 초기 설정이 필요합니다 (DATABASE_URL, BETTER_AUTH_SECRET, DB 연결).
           </p>
         )}
 
