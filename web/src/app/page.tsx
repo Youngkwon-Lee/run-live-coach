@@ -40,13 +40,23 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <Button
-            size="lg"
-            onClick={() => router.push("/auth")}
-            className="font-mono text-base px-10"
-          >
-            Get Started
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              size="lg"
+              onClick={() => router.push("/auth")}
+              className="font-mono text-base px-10"
+            >
+              Get Started
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => router.push("/dawn")}
+              className="font-mono text-base px-8 border-white/40 text-white bg-transparent hover:bg-white/10"
+            >
+              Dawn
+            </Button>
+          </div>
         </div>
       </div>
     </div>

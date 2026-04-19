@@ -5,7 +5,13 @@ import { bearer } from "better-auth/plugins/bearer";
 import { deviceAuthorization } from "better-auth/plugins/device-authorization";
 import db from "@/db";
 
+const baseURL =
+  process.env.BETTER_AUTH_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.NODE_ENV === "development" ? "http://localhost:3000" : undefined);
+
 export const auth = betterAuth({
+  ...(baseURL ? { baseURL } : {}),
   database: drizzleAdapter(db, { provider: "pg" }),
   emailAndPassword: {
     enabled: true,

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useShape } from "@electric-sql/react";
 import { useSession, signOut } from "@/lib/auth-client";
 
@@ -30,8 +31,25 @@ export default function ProfileClient({
   const { data: runs } = useShape<RunRow>({
     url: `${window.location.origin}/api/sync/runs?userId=${userId}`,
   });
+  const [fallbackRuns, setFallbackRuns] = useState<RunRow[]>([]);
 
-  const sorted = [...runs].sort(
+  useEffect(() => {
+    if (runs.length > 0) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/runs/by-user?userId=${encodeURIComponent(userId)}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        setFallbackRuns(Array.isArray(json?.runs) ? json.runs : []);
+      } catch {
+        // ignore
+      }
+    })();
+  }, [runs, userId]);
+
+  const sourceRuns = runs.length > 0 ? runs : fallbackRuns;
+
+  const sorted = [...sourceRuns].sort(
     (a, b) =>
       new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
   );
